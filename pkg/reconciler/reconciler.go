@@ -87,7 +87,8 @@ type options struct {
 	// skipStatusSync indicates the reconciler can skip sync status
 	skipStatusSync bool
 
-	pred *predicate.Predicate
+	pred   *predicate.Predicate
+	client client.Client
 }
 
 type ApplyOption func(*options)
@@ -114,6 +115,10 @@ func WithBuildFn(buildFn func(*builder.Builder)) ApplyOption {
 
 func WithPredicate(pred predicate.Predicate) ApplyOption {
 	return func(o *options) { o.pred = &pred }
+}
+
+func WithClient(client client.Client) ApplyOption {
+	return func(o *options) { o.client = client }
 }
 
 func SkipFinalizer() ApplyOption {
@@ -168,9 +173,13 @@ func Setup[T client.Object](tpl T, name string, mgr ctrl.Manager, actor Actor[T]
 }
 
 func newReconciler[T client.Object](tpl T, name string, mgr ctrl.Manager, actor Actor[T], opts *options) (*Reconciler[T], error) {
+	c := mgr.GetClient()
+	if opts.client != nil {
+		c = opts.client
+	}
 	r := &Reconciler[T]{
 		options: opts,
-		Client:  mgr.GetClient(),
+		Client:  c,
 
 		name:  name,
 		actor: actor,
